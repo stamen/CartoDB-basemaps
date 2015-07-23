@@ -56,6 +56,9 @@
             if (color == 'dark' && l.name == "global_variables") {
               l.options.cartocss_file = 'styles/global_variables_dark.mss';
             }
+            if (color == 'dark' && l.name == "global_variables_labels") {
+              l.options.cartocss_file = 'styles/global_variables_dark_only_labels.mss';
+            }
             $.get(l.options.cartocss_file, '', function (data) { 
               sublayers.push({
                 sql:l.options.sql, 
