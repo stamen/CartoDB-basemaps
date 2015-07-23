@@ -18,9 +18,6 @@
     <a id="zoom_to_sf" href="#13/37.7520/-122.4415">Zoom to San Francisco</a>
     <a id="zoom_to_madrid" href="#13/40.4183/-363.6865">Zoom to Madrid</a>
     <a id="cartodb_layer" href="#">Add cartodb layer</a>
-    <a href="variant_nolabels.html">No Labels</a>
-    <a href="variant_dark.html">Dark</a>
-    <a href="variant_dark_nolabels.html">Dark+No Labels</a>
     <button id="embedme">Embed this map in CartoDB</button>
     <div id="manage">
       <h2>layers</h2>
@@ -31,7 +28,11 @@
       <ul id="togglebox">
       </ul>
     </div>
- 
+    <div id="color_selector" class="cartodb-infobox">
+      <ul id="colortogglebox">
+      </ul>
+    </div>
+
     <!-- include cartodb.js library -->
     <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
     <script src="assets/leaflet-hash.js"></script>
@@ -42,6 +43,7 @@
       function main() {
         var toggleSets;
         var config; 
+        var color = 'light';
 
         $.ajaxSetup({ async: false }); /// I think I can skip callbacks here
 
@@ -51,6 +53,10 @@
         $.get("project.json", "", function(data) {
           toggleSets = data.togglesets;
           data.layers.forEach(function(l) {
+            console.log(l);
+            if (color == 'dark' && l.name == "global_variables") {
+              l.options.cartocss_file = 'styles/global_variables_dark.mss';
+            }
             $.get(l.options.cartocss_file, '', function (data) { 
               sublayers.push({
                 sql:l.options.sql, 
@@ -133,6 +139,7 @@
             function updateLayers() {
               var setup = {}
               for(var i = 0; i < sublayers.length; i++) {
+                //console.log(sublayers[i]);
                 if (sublayers[i].showing) {
                   sublayers[i].cartodb_ref.show();
                 } else {
@@ -167,7 +174,7 @@
               .on("click", function(d) {
                 d3.select("#togglebox").selectAll("li").classed("selected",false);
                 d3.select(this).classed("selected",true);
-                
+
                 var toggleSetIndex = toggleSets.indexOf(d);
                 sublayers.forEach(function(sl) {
                   if(sl.toggle[toggleSetIndex]) {
@@ -178,7 +185,15 @@
                   updateLayers();
                 });
               });
-          }).on('error', function() { console.log("error"); }); 
+
+            d3.select("#colortogglebox").selectAll("li").data(['light','dark']).enter().append("li")
+              .html(function(d) {
+                if (d == 'light') return '<a href=\"index.html\">' + d + '</a>';
+                else return '<a href=\"variant_dark.html\">' + d + '</a>';
+              })
+              .classed("selected", function(d) { return d == color });
+
+          }).on('error', function() { console.log("error"); });
       }
       window.onload = main;
     </script>

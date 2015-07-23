@@ -14,21 +14,25 @@
   </head>
   <body>
     <a href="previews/">Basemap 0-18 Previews</a>
+    <div id="zoom_level" style= "display: inline">ZOOM: 0</div>
     <a id="zoom_to_sf" href="#13/37.7520/-122.4415">Zoom to San Francisco</a>
     <a id="zoom_to_madrid" href="#13/40.4183/-363.6865">Zoom to Madrid</a>
-    <a id="beyonce" href="">Beyonce</a>
-    <a id="portland" href="">Portland Street Lights</a>
-    <a id="restaurants" href="">Restaurant Hexbins</a>
-    <a href="variant_nolabels.html">No Labels</a>
-    <a href="variant_dark.html">Dark</a>
-    <a href="variant_dark_nolabels.html">Dark+No Labels</a>
+    <a id="cartodb_layer" href="#">Add cartodb layer</a>
     <button id="embedme">Embed this map in CartoDB</button>
+    <div id="manage">
+      <h2>layers</h2>
+      <ul id="layers" class="connectedSortable"></ul>
+    </div>
     <div id="map"></div>
     <div id="layer_selector" class="cartodb-infobox">
       <ul id="togglebox">
       </ul>
     </div>
- 
+    <div id="color_selector" class="cartodb-infobox">
+      <ul id="colortogglebox">
+      </ul>
+    </div>
+
     <!-- include cartodb.js library -->
     <script src="http://libs.cartocdn.com/cartodb.js/v3/cartodb.js"></script>
     <script src="assets/leaflet-hash.js"></script>
@@ -39,15 +43,18 @@
       function main() {
         var toggleSets;
         var config; 
+        var color = 'dark';
 
         $.ajaxSetup({ async: false }); /// I think I can skip callbacks here
+
+        var layersSetup = localStorage.getItem('layersSetup') ? JSON.parse(localStorage.getItem('layersSetup')) : {};
         var sublayers = [];
 
         $.get("project.json", "", function(data) {
           toggleSets = data.togglesets;
           data.layers.forEach(function(l) {
             console.log(l);
-            if (l.name == "global_variables") {
+            if (color == 'dark' && l.name == "global_variables") {
               l.options.cartocss_file = 'styles/global_variables_dark.mss';
             }
             $.get(l.options.cartocss_file, '', function (data) { 
@@ -56,11 +63,13 @@
                 cartocss:data,
                 name:l.name,
                 toggle:l.toggle, 
-                original_sql:l.options.sql
+                original_sql:l.options.sql,
+                showing: layersSetup[l.name] === undefined ? true: layersSetup[l.name]
               });
             });
           });
         });
+
         $.get("config.json", "", function(data) { config = data; });
         $.ajaxSetup({ async: true });
 
@@ -71,11 +80,18 @@
           maxZoom: 18,
           attributionControl: false
         });
+        map.on('zoomend', function() {
+            $('#zoom_level').text("ZOOM " + map.getZoom());
+        });
 
         var hash = new L.Hash(map);
         new L.Control.GeoSearch({
           provider: new L.GeoSearch.Provider.Nominatim(),
           showMarker: false
+        }).addTo(map);
+        // Use Toner as the initial basemap and load the dynamic cartodb tiles on top. This way you can tell when they fail or not.
+        var baselayer = L.tileLayer('http://{s}.tile.stamen.com/toner-background/{z}/{x}/{y}.png', {
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
         }).addTo(map);
 
         cartodb.createLayer(map, {
@@ -94,9 +110,25 @@
                 alert("Copy this URL into CartoDB: \n\n" + tileTemplate);
               });
 
-              $("#beyonce").attr("href","vis_examples/beyonce.html?layergroupid=" + t.tiles[0]);
-              $("#portland").attr("href","vis_examples/portland_street_lights.html?layergroupid=" + t.tiles[0]);
-              $("#restaurants").attr("href","vis_examples/restaurant_hexbins.html?layergroupid=" + t.tiles[0]);
+              var vizjsonUrl = localStorage.getItem('vizjson')
+
+              function addCdbLayer(vizjsonUrl) {
+                cartodb.createLayer(map, vizjsonUrl).done(function(cdb_layer) {
+                  baselayer.setZIndex(0)
+                  cdb_layer.setZIndex(1)
+                  layer.setZIndex(2)
+                }).addTo(map);
+              }
+              if (vizjsonUrl) {
+                addCdbLayer(vizjsonUrl);
+              }
+
+              $("#cartodb_layer").click(function() {
+                var vizjsonUrl = window.prompt('viz.json url');
+                localStorage.setItem('vizjson', vizjsonUrl);
+                addCdbLayer(vizjsonUrl);
+                return false;
+              });
             })
 
             // stitch together two lists: the project list, and references to the returned CartoDB layers
@@ -104,26 +136,66 @@
               sublayers[i].cartodb_ref = layer.getSubLayer(i); 
             }
 
+            function updateLayers() {
+              var setup = {}
+              for(var i = 0; i < sublayers.length; i++) {
+                //console.log(sublayers[i]);
+                if (sublayers[i].showing) {
+                  sublayers[i].cartodb_ref.show();
+                } else {
+                  sublayers[i].cartodb_ref.hide();
+                }
+                setup[sublayers[i].name] = sublayers[i].showing;
+              }
+              d3.select('#layers').selectAll('li').data(sublayers)
+                .attr('class', function(d) {
+                  return d.showing ? 'selected': ''
+                });
+              localStorage.setItem('layersSetup', JSON.stringify(setup))
+            }
+
+            updateLayers();
+
+            d3.select('#layers').selectAll('li').data(sublayers).enter()
+              .append('li')
+              .text(function(d) { return d.name })
+              .attr('class', function(d) {
+                return d.showing ? 'selected': ''
+              })
+              .on('click', function(d, i) {
+                var b = sublayers[i].showing = !sublayers[i].showing;
+                d3.select(this).classed("selected", b);
+                updateLayers();
+              })
+
             d3.select("#togglebox").selectAll("li").data(toggleSets).enter().append("li")
               .text(function(d) { return d })
               .classed("selected", function(d,i) { return i == 1 })
               .on("click", function(d) {
                 d3.select("#togglebox").selectAll("li").classed("selected",false);
                 d3.select(this).classed("selected",true);
-                
+
                 var toggleSetIndex = toggleSets.indexOf(d);
                 sublayers.forEach(function(sl) {
                   if(sl.toggle[toggleSetIndex]) {
-                    sl.cartodb_ref.setSQL(sl.original_sql);
+                    sl.showing = true;
                   } else {
-                    sl.cartodb_ref.setSQL(sl.original_sql + " LIMIT 0");
+                    sl.showing = false;
                   }
+                  updateLayers();
                 });
               });
-          }).on('error', function() { console.log("error"); }); 
+
+            d3.select("#colortogglebox").selectAll("li").data(['light','dark']).enter().append("li")
+              .html(function(d) {
+                if (d == 'light') return '<a href=\"index.html\">' + d + '</a>';
+                else return '<a href=\"variant_dark.html\">' + d + '</a>';
+              })
+              .classed("selected", function(d) { return d == color });
+
+          }).on('error', function() { console.log("error"); });
       }
       window.onload = main;
     </script>
   </body>
 </html>
-

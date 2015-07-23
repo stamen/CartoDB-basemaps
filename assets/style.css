@@ -11,12 +11,19 @@ html, body, #map {
   padding: 0;
 }
 
-#layer_selector ul {
+#color_selector {
+  position: absolute;
+  top: 320px;
+  right: 20px;
+  padding: 0;
+}
+
+.cartodb-infobox ul {
   padding: 0; margin: 0;
   list-style-type: none;
 }
 
-#layer_selector li {
+.cartodb-infobox li {
   border-bottom: 1px solid #999;
   padding: 15px 30px;
   font-family: "Helvetica", Arial;
@@ -26,10 +33,10 @@ html, body, #map {
   background-color: #ccc;
 }
 
-#layer_selector li:hover {
+.cartodb-infobox li:hover {
   cursor: pointer;
 }
-#layer_selector li.selected {
+.cartodb-infobox li.selected {
   color: black;
   font-weight: bold;
   background-color: white;
