@@ -83,7 +83,8 @@
           provider: new L.GeoSearch.Provider.Nominatim(),
           showMarker: false
         }).addTo(map);
-        var baselayer = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
+        // Use Toner as the initial basemap and load the dynamic cartodb tiles on top. This way you can tell when they fail or not.
+        var baselayer = L.tileLayer('http://{s}.tile.stamen.com/toner-background/{z}/{x}/{y}.png', {
           attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
         }).addTo(map);
 
