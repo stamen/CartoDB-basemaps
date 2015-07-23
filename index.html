@@ -53,7 +53,6 @@
         $.get("project.json", "", function(data) {
           toggleSets = data.togglesets;
           data.layers.forEach(function(l) {
-            console.log(l);
             if (color == 'dark' && l.name == "global_variables") {
               l.options.cartocss_file = 'styles/global_variables_dark.mss';
             }
@@ -139,7 +138,6 @@
             function updateLayers() {
               var setup = {}
               for(var i = 0; i < sublayers.length; i++) {
-                //console.log(sublayers[i]);
                 if (sublayers[i].showing) {
                   sublayers[i].cartodb_ref.show();
                 } else {
